@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退休生存模擬器 | My-Ageing Crisis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+        .slider-thumb::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: white; border-radius: 50%; cursor: pointer; }
+        .slider-track { width: 100%; height: 6px; background: #334155; border-radius: 3px; outline: none; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+
+    <nav class="w-full max-w-5xl flex justify-between items-center mb-8 text-sm text-gray-400">
+        <div class="flex items-center gap-2">
+            <span class="text-red-500 font-bold text-lg">⚠️ MY-AGEINGCRISIS</span>
+        </div>
+        <div class="hidden md:flex gap-6">
+            <span>人口結構</span>
+            <span>醫療財政</span>
+            <span class="bg-red-900/50 text-red-400 px-2 py-1 rounded border border-red-800">退休計算器</span>
+            <span>長照危機</span>
+        </div>
+    </nav>
+
+
+    <h1 class="text-3xl md:text-4xl font-bold mb-2 text-center">3.1 退休生存模擬器</h1>
+    <p class="text-gray-400 mb-8 text-center">有了上面的預估數字，這些錢在沒有收入的情況下能支撐多久？</p>
+
+
+    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 md:p-10 w-full max-w-5xl flex flex-col md:flex-row gap-10 shadow-2xl">
+        
+        <div class="flex-1 flex flex-col justify-between">
+            
+            <div class="mb-6">
+                <label class="block text-gray-300 mb-2">退休時的 EPF 總儲蓄 (RM)</label>
+                <input type="number" id="savingsInput" value="250000" class="w-full bg-slate-700 border border-slate-600 rounded p-3 text-xl text-white mb-4 focus:outline-none focus:border-blue-500">
+                <input type="range" id="savingsRange" min="1000" max="1500000" step="1000" value="250000" class="slider-track w-full">
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>B40 (1k)</span>
+                    <span>理想 (600k)</span>
+                    <span>富裕 (1.5M)</span>
+                </div>
+            </div>
+
+
+            <div class="mb-8">
+                <label class="block text-gray-300 mb-2">退休後每月開銷 (RM)</label>
+                <input type="number" id="expenseInput" value="2000" class="w-full bg-slate-700 border border-slate-600 rounded p-3 text-xl text-white mb-4 focus:outline-none focus:border-blue-500">
+                <input type="range" id="expenseRange" min="500" max="20000" step="100" value="2000" class="slider-track w-full">
+            </div>
+
+
+            <div class="bg-red-900/20 border border-red-900/50 rounded-lg p-4 mt-4">
+                <h3 class="text-red-400 font-bold mb-2 flex items-center gap-2">
+                    ⚠️ 現實數據檢查
+                </h3>
+                <ul class="text-sm text-gray-300 space-y-2 list-disc pl-4">
+                    <li>吉隆坡體面生活門檻：<span class="font-bold text-white">RM 600,000</span></li>
+                    <li>僅 <span class="font-bold text-white">4%</span> 會員達標</li>
+                    <li>B40群體存款中位數僅 <span class="font-bold text-white">RM 1,005</span> (疫情後)</li>
+                </ul>
+            </div>
+        </div>
+
+
+        <div class="flex-1 bg-slate-900/50 rounded-xl p-6 flex flex-col items-center justify-center relative">
+            <p class="text-gray-400 mb-4">您的儲蓄可以維持：</p>
+            
+            <div class="relative w-64 h-64">
+                <canvas id="resultChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span id="yearsDisplay" class="text-5xl font-bold text-white">10.4</span>
+                    <span class="text-gray-400">年</span>
+                </div>
+            </div>
+
+
+            <div class="mt-6 text-center">
+                <h2 id="riskTitle" class="text-2xl font-bold text-yellow-500 mb-1">風險偏高 (High Risk)</h2>
+                <p class="text-xs text-gray-500">假設資金閒置，無額外投資回報</p>
+            </div>
+
+
+            <button onclick="alert('這裡串接 Email 收集表單！')" class="mt-8 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full transition shadow-lg w-full md:w-auto">
+                獲取詳細改善報告 &rarr;
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        // 初始化變數
+        const savingsInput = document.getElementById('savingsInput');
+        const savingsRange = document.getElementById('savingsRange');
+        const expenseInput = document.getElementById('expenseInput');
+        const expenseRange = document.getElementById('expenseRange');
+        
+        const yearsDisplay = document.getElementById('yearsDisplay');
+        const riskTitle = document.getElementById('riskTitle');
+        const ctx = document.getElementById('resultChart').getContext('2d');
+
+
+        // 初始化圖表 (Chart.js)
+        let chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['可支撐', '不足'],
+                datasets: [{
+                    data: [10.4, 20], // 預設值
+                    backgroundColor: ['#F59E0B', '#334155'], // 黃色 / 深灰
+                    borderWidth: 0,
+                    cutout: '85%'
+                }]
+            },
+            options: { pointerEvents: 'none', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+        });
+
+
+        // 核心計算邏輯
+        function updateCalculator() {
+            const savings = parseFloat(savingsInput.value) || 0;
+            const expense = parseFloat(expenseInput.value) || 0;
+
+
+            // 連動 Range Slider
+            savingsRange.value = savings;
+            expenseRange.value = expense;
+
+
+            if (expense === 0) return;
+
+
+            // 計算年限
+            const years = savings / (expense * 12);
+            const yearsFormatted = years.toFixed(1);
+
+
+            // 更新數字顯示
+            yearsDisplay.innerText = yearsFormatted;
+
+
+            // 風險判斷邏輯
+            let riskColor = '#F59E0B'; // 黃色
+            let riskText = "風險偏高 (High Risk)";
+
+
+            if (years < 5) {
+                riskColor = '#EF4444'; // 紅色
+                riskText = "極度危險 (Critical)";
+            } else if (years >= 20) {
+                riskColor = '#10B981'; // 綠色
+                riskText = "相對安全 (Safe)";
+            } else if (years >= 10) {
+                riskColor = '#F59E0B'; // 黃色
+                riskText = "風險偏高 (High Risk)";
+            }
+
+
+            // 更新 UI 顏色與文字
+            riskTitle.innerText = riskText;
+            riskTitle.className = `text-2xl font-bold mb-1`;
+            riskTitle.style.color = riskColor;
+
+
+            // 更新圖表
+            chart.data.datasets[0].backgroundColor = [riskColor, '#334155'];
+            // 這裡做一個視覺效果：如果超過30年就滿圈，否則按比例
+            const maxYearsRef = 30; 
+            const fillValue = Math.min(years, maxYearsRef);
+            chart.data.datasets[0].data = [fillValue, maxYearsRef - fillValue];
+            chart.update();
+        }
+
+
+        // 綁定事件監聽
+        [savingsInput, savingsRange].forEach(el => {
+            el.addEventListener('input', (e) => {
+                savingsInput.value = e.target.value;
+                updateCalculator();
+            });
+        });
+
+
+        [expenseInput, expenseRange].forEach(el => {
+            el.addEventListener('input', (e) => {
+                expenseInput.value = e.target.value;
+                updateCalculator();
+            });
+        });
+
+
+        // 初始執行一次
+        updateCalculator();
+    </script>
+</body>
+</html>
